@@ -80,7 +80,7 @@ class BreedController extends Controller
     }
 
 
-    public function getMostPopularBreeds( Request $request )
+    public function getMostPopularBreeds(Request $request)
     {
         $mostPopularBreeds = Breed::orderBy("visits", "DESC")->take(10)->get();
 
@@ -90,11 +90,60 @@ class BreedController extends Controller
         ]);
     }
 
+    public function getRandomBreeds($quantity, Request $request)
+    {
+        $parsedQuantity = intval($quantity);
+        if ($parsedQuantity <= 0) {
+            return response()->json([
+                'msg' => "Error: Can't get that quantity ($quantity) of breeds",
+            ], 400);
+        }
+
+        $CAT_API_KEY = env("CAT_API_KEY", "null");
+        $cat_api_url_breeds = "https://api.thecatapi.com/v1/breeds";
+
+        $breedsResponse = Http::withHeaders([
+            'x-api-key' => $CAT_API_KEY,
+        ])->get($cat_api_url_breeds);
+        $parsedBreedsResponse = $breedsResponse->json();
+
+        if ($breedsResponse->failed()) {
+            return response()->json(['msg' => $parsedBreedsResponse['message']], $breedsResponse->status());
+        }
+
+        function generateRandomIndexes($quantity, $limit)
+        {
+            $randomIndexes = array();
+
+            while (count($randomIndexes) < $quantity) {
+                $randomIndex = rand(0, $limit-1);
+                if (!in_array($randomIndex, $randomIndexes)) {
+                    $randomIndexes[] = $randomIndex;
+                }
+            }
+
+            return $randomIndexes;
+        }
+
+        
+        $totalBreeds = count($parsedBreedsResponse);
+        if($parsedQuantity >= $totalBreeds) { $parsedQuantity = $totalBreeds; } //Limit the quantity requested
+
+        $breedsIndexes = generateRandomIndexes($parsedQuantity, $totalBreeds);
+        $randomBreeds = array_map(function ($index) use ($parsedBreedsResponse) {
+            return $parsedBreedsResponse[$index];
+        }, $breedsIndexes);
+
+        return response()->json([
+            'msg' => "Random breeds getted succesfully",
+            'breeds' => $randomBreeds ?? [],
+        ]);
+    }
 
     public function updatePopularity($breed_id, Request $request)
     {
         $alreadyExist = Breed::firstWhere('short_name', $breed_id);
-        
+
         if (!$alreadyExist) {
             $CAT_API_KEY = env("CAT_API_KEY", "null");
             $cat_api_url_breed  = "https://api.thecatapi.com/v1/breeds/$breed_id";
