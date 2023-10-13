@@ -80,6 +80,17 @@ class BreedController extends Controller
     }
 
 
+    public function getMostPopularBreeds( Request $request )
+    {
+        $mostPopularBreeds = Breed::orderBy("visits", "DESC")->take(10)->get();
+
+        return response()->json([
+            'msg' => "Most popular breeds getted succesfully",
+            'breeds' => $mostPopularBreeds ?? [],
+        ]);
+    }
+
+
     public function updatePopularity($breed_id, Request $request)
     {
         $alreadyExist = Breed::firstWhere('short_name', $breed_id);
