@@ -23,3 +23,4 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // Breed ROUTE'S
 Route::get('breeds', [BreedController::class, 'getAllBreeds']);
 Route::get('breed/{breed_id}', [BreedController::class, 'getBreed']);
+Route::put('breed/update/{breed_id}', [BreedController::class, 'updatePopularity']);
