@@ -82,11 +82,38 @@ class BreedController extends Controller
 
     public function getMostPopularBreeds(Request $request)
     {
-        $mostPopularBreeds = Breed::orderBy("visits", "DESC")->take(10)->get();
+        $mostPopularBreeds = Breed::orderBy("visits", "DESC")->take(10)->get()->toArray();
+
+        $CAT_API_KEY = env("CAT_API_KEY", "null");
+        $cat_api_url_breeds = "https://api.thecatapi.com/v1/breeds";
+
+        $breedsResponse = Http::withHeaders([
+            'x-api-key' => $CAT_API_KEY,
+        ])->get($cat_api_url_breeds);
+        $parsedBreedsResponse = $breedsResponse->json();
+
+        if ($breedsResponse->failed()) {
+            return response()->json(['msg' => $parsedBreedsResponse['message']], $breedsResponse->status());
+        }
+
+        // dd( $mostPopularBreeds, $parsedBreedsResponse);
+        $popularBreeds = array_map(function ($entry) use ($parsedBreedsResponse) {
+            $isPopular = null;
+
+            for ($i = 0; $i < count($parsedBreedsResponse); $i++) {
+                $actualParsedBreed = $parsedBreedsResponse[$i];
+                if ($actualParsedBreed['name'] === $entry['name']) {
+                    $isPopular = $actualParsedBreed;
+                    break;
+                }
+            }
+
+            return $isPopular ?? false;
+        }, $mostPopularBreeds);
 
         return response()->json([
             'msg' => "Most popular breeds getted succesfully",
-            'breeds' => $mostPopularBreeds ?? [],
+            'breeds' => $popularBreeds ?? [],
         ]);
     }
 
@@ -116,7 +143,7 @@ class BreedController extends Controller
             $randomIndexes = array();
 
             while (count($randomIndexes) < $quantity) {
-                $randomIndex = rand(0, $limit-1);
+                $randomIndex = rand(0, $limit - 1);
                 if (!in_array($randomIndex, $randomIndexes)) {
                     $randomIndexes[] = $randomIndex;
                 }
@@ -125,9 +152,11 @@ class BreedController extends Controller
             return $randomIndexes;
         }
 
-        
+
         $totalBreeds = count($parsedBreedsResponse);
-        if($parsedQuantity >= $totalBreeds) { $parsedQuantity = $totalBreeds; } //Limit the quantity requested
+        if ($parsedQuantity >= $totalBreeds) {
+            $parsedQuantity = $totalBreeds;
+        } //Limit the quantity requested
 
         $breedsIndexes = generateRandomIndexes($parsedQuantity, $totalBreeds);
         $randomBreeds = array_map(function ($index) use ($parsedBreedsResponse) {
